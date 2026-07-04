@@ -1,0 +1,11 @@
+.flag {
+  border: 1px solid black;
+}
+
+.weather {
+  width: 400px;
+  display: flex;
+  flex-direction: column;
+
+  margin-top: 20px;
+}

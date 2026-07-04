@@ -3,17 +3,25 @@ import PersonForm from "./components/PersonForm";
 import People from "./components/People";
 import Search from "./components/Search";
 import dataModify from "./services/data";
+import Notification from "./components/Notification";
+import Error from "./components/Error";
 
 const App = () => {
-  const [persons, setPersons] = useState([]);
+  const [persons, setPersons] = useState(null);
   const [newName, setNewName] = useState("");
   const [newNumber, setNewNumber] = useState("");
   const [searchString, setSearchString] = useState("");
+  const [message, setMessage] = useState(null);
+  const [errorMessage, setErrorMessage] = useState(null);
 
   useEffect(() => {
     console.log("effect");
     dataModify.getAll().then((data) => setPersons(data));
   }, []);
+
+  if (!persons) {
+    return null;
+  }
 
   let changeName = (e) => setNewName(e.target.value);
   let changeNumber = (e) => setNewNumber(e.target.value);
@@ -23,18 +31,39 @@ const App = () => {
     if (!window.confirm("Are you sure you want to delete this person?")) {
       return;
     }
-    dataModify.remove(id).then(() => {
-      setPersons(persons.filter((p) => p.id !== id)).catch((error) => {
+    let personName = persons.find((p) => p.id === id).name;
+    dataModify
+      .remove(id)
+      .then(() => {
+        setPersons(persons.filter((p) => p.id !== id));
+      })
+      .then(() => {
+        setMessage(`removed the person "${personName}" with id "${id}"`);
+        setTimeout(() => {
+          setMessage(null);
+        }, 5000);
+      })
+      .catch((error) => {
+        setPersons(persons.filter((p) => p.id !== id));
         console.log(error);
-        alert(
-          `the person with id ${id} has already been removed from the server`,
+        setErrorMessage(
+          `the person "${personName}" with id "${id}" has already been removed from the server`,
         );
+        setTimeout(() => {
+          setErrorMessage(null);
+        }, 5000);
       });
-    });
   };
 
   const addPerson = (event) => {
     event.preventDefault();
+    if (newName === "" || newNumber === "") {
+      setMessage("Name and number are required");
+      setTimeout(() => {
+        setMessage(null);
+      }, 3000);
+      return;
+    }
     let personAlreadyInData = persons.find((person) => person.name === newName);
 
     if (personAlreadyInData) {
@@ -45,14 +74,24 @@ const App = () => {
       ) {
         let id = personAlreadyInData.id;
         let updatedPerson = { ...personAlreadyInData, number: newNumber };
-        dataModify.updateNumber(id, updatedPerson).then((data) => {
-          setPersons(persons.map((p) => (p.id === id ? data : p)));
-        });
+        dataModify
+          .updateNumber(id, updatedPerson)
+          .then((data) => {
+            setPersons(persons.map((p) => (p.id === id ? data : p)));
+          })
+          .then(() => {
+            setMessage(`Updated the number of ${newName} successfully`);
+            setTimeout(() => {
+              setMessage(null);
+            }, 5000);
+          });
+
         setNewName("");
         setNewNumber("");
       }
       return;
     }
+
     let newPerson = {
       name: newName,
       number: newNumber,
@@ -60,7 +99,13 @@ const App = () => {
 
     dataModify
       .create(newPerson)
-      .then((data) => setPersons(persons.concat(data)));
+      .then((data) => setPersons(persons.concat(data)))
+      .then(() => {
+        setMessage(`Added ${newName} successfully with number ${newNumber}`);
+        setTimeout(() => {
+          setMessage(null);
+        }, 1000);
+      });
 
     setNewName("");
     setNewNumber("");
@@ -69,9 +114,10 @@ const App = () => {
   return (
     <div>
       <h2>Phonebook</h2>
-
+      <Notification message={message} />
+      <Error errorMessage={errorMessage} />
       <Search value={searchString} onChange={changeSearchString} />
-
+      <br />
       <PersonForm
         addPerson={addPerson}
         newName={newName}
